@@ -1,0 +1,20 @@
+{
+  "name": "@openclaw/facility-web",
+  "version": "0.1.0",
+  "description": "Privacy-first family web chat plugin for OpenClaw with MAC+PIN auth and per-user agent routing",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["openclaw", "plugin", "family", "parental", "webchat", "multi-agent"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/OpenClaw_SimpleWebChat"
+  },
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  },
+  "devDependencies": {},
+  "dependencies": {
+    "ws": "^8.18.0",
+    "yaml": "^2.7.0"
+  }
+}

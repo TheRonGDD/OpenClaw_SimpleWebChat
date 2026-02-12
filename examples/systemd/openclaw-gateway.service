@@ -1,0 +1,50 @@
+# OpenClaw Gateway — systemd service unit
+#
+# Install:
+#   sudo cp openclaw-gateway.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable openclaw-gateway
+#   sudo systemctl start openclaw-gateway
+#
+# Logs:
+#   journalctl -u openclaw-gateway -f
+#
+# Adjust User, WorkingDirectory, and ExecStart to match your setup.
+
+[Unit]
+Description=OpenClaw AI Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=openclaw
+Group=openclaw
+WorkingDirectory=/home/openclaw/.openclaw
+ExecStart=/usr/bin/node /home/openclaw/.openclaw/gateway/index.js
+Restart=on-failure
+RestartSec=5
+
+# Environment
+Environment=NODE_ENV=production
+Environment=HOME=/home/openclaw
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/openclaw/.openclaw
+PrivateTmp=true
+
+# Resource limits (adjust for your hardware)
+# On a Jetson Orin Nano with 8GB RAM, these are reasonable defaults
+LimitNOFILE=4096
+MemoryMax=2G
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=openclaw
+
+[Install]
+WantedBy=multi-user.target

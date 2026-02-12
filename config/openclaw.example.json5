@@ -1,0 +1,64 @@
+// OpenClaw config additions for facility-web plugin
+// Merge these into your ~/.openclaw/openclaw.json
+{
+  // 1. Enable the plugin
+  "plugins": {
+    "entries": {
+      "facility-web": {
+        "enabled": true,
+        "config": {
+          "usersFile": "~/.openclaw/facility-users.yaml"
+        }
+      }
+    }
+  },
+
+  // 2. Register the channel
+  "channels": {
+    "facility-web": {
+      "accounts": {
+        "default": {
+          "enabled": true
+        }
+      }
+    }
+  },
+
+  // 3. Route users to agents via bindings
+  // Adjust agentId and peer IDs to match your users.yaml
+  "bindings": [
+    {
+      "agentId": "admin-agent",
+      "match": {
+        "channel": "facility-web",
+        "peer": { "kind": "dm", "id": "facility:dad" }
+      }
+    },
+    {
+      "agentId": "parent-agent",
+      "match": {
+        "channel": "facility-web",
+        "peer": { "kind": "dm", "id": "facility:mom" }
+      }
+    },
+    {
+      "agentId": "child-agent",
+      "match": {
+        "channel": "facility-web",
+        "peer": { "kind": "dm", "id": "facility:child1" }
+      }
+    },
+    {
+      "agentId": "child-agent-2",
+      "match": {
+        "channel": "facility-web",
+        "peer": { "kind": "dm", "id": "facility:child2" }
+      }
+    }
+  ],
+
+  // 4. Session isolation — each user gets their own session
+  "session": {
+    "dmScope": "per-channel-peer"
+  }
+}

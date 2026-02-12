@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Facility Chat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen" class="screen active">
+    <div class="login-container">
+      <div class="login-header">
+        <div class="logo">⬡</div>
+        <h1>Facility Chat</h1>
+        <p class="subtitle">Enter your PIN to connect</p>
+      </div>
+      <div class="pin-display">
+        <span class="pin-dot" data-index="0"></span>
+        <span class="pin-dot" data-index="1"></span>
+        <span class="pin-dot" data-index="2"></span>
+        <span class="pin-dot" data-index="3"></span>
+      </div>
+      <div class="pin-pad">
+        <button class="pin-key" data-key="1">1</button>
+        <button class="pin-key" data-key="2">2</button>
+        <button class="pin-key" data-key="3">3</button>
+        <button class="pin-key" data-key="4">4</button>
+        <button class="pin-key" data-key="5">5</button>
+        <button class="pin-key" data-key="6">6</button>
+        <button class="pin-key" data-key="7">7</button>
+        <button class="pin-key" data-key="8">8</button>
+        <button class="pin-key" data-key="9">9</button>
+        <button class="pin-key pin-key-empty"></button>
+        <button class="pin-key" data-key="0">0</button>
+        <button class="pin-key pin-key-back" data-key="back">&#x232B;</button>
+      </div>
+      <div id="login-error" class="error-message"></div>
+      <div id="login-status" class="status-message">Connecting...</div>
+    </div>
+  </div>
+
+  <!-- PASSPHRASE SCREEN -->
+  <div id="passphrase-screen" class="screen">
+    <div class="login-container">
+      <div class="login-header">
+        <div class="logo">⬡</div>
+        <h1 id="passphrase-greeting">Welcome</h1>
+        <p class="subtitle">Enter your passphrase to continue</p>
+      </div>
+      <div class="passphrase-form">
+        <input type="password" id="passphrase-input" class="passphrase-input" placeholder="Passphrase" autocomplete="off" />
+        <button id="passphrase-submit" class="btn-passphrase-submit">Sign In</button>
+      </div>
+      <div id="passphrase-error" class="error-message"></div>
+      <button id="passphrase-back" class="btn-link">Back to PIN</button>
+    </div>
+  </div>
+
+  <!-- CHAT SCREEN -->
+  <div id="chat-screen" class="screen">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <div class="agent-indicator"></div>
+        <span id="agent-name">Agent</span>
+      </div>
+      <div class="chat-header-right">
+        <span id="user-name" class="user-badge"></span>
+        <button id="admin-btn" class="btn-icon" title="Admin Panel" style="display:none;">&#x2699;</button>
+        <button id="audit-btn" class="btn-icon" title="Audit Log" style="display:none;">&#x1f6e1;</button>
+        <button id="logout-btn" class="btn-icon" title="Logout">&#x23FB;</button>
+      </div>
+    </div>
+    <div id="chat-messages" class="chat-messages"></div>
+    <div class="chat-input-container">
+      <textarea
+        id="chat-input"
+        placeholder="Type a message..."
+        rows="1"
+        maxlength="4096"
+      ></textarea>
+      <button id="send-btn" class="btn-send" disabled>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 2L11 13"></path>
+          <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- AUDIT PANEL (parents/admin only) -->
+  <div id="audit-panel" class="audit-panel">
+    <div class="audit-header">
+      <h2>Audit Log</h2>
+      <div class="audit-controls">
+        <select id="audit-child-filter">
+          <option value="">All children</option>
+        </select>
+        <select id="audit-days-filter">
+          <option value="1">Last 24h</option>
+          <option value="3">Last 3 days</option>
+          <option value="7" selected>Last 7 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
+      </div>
+      <button id="audit-close" class="btn-icon" title="Close">&#x2715;</button>
+    </div>
+    <div id="audit-entries" class="audit-entries"></div>
+  </div>
+
+  <!-- ADMIN PANEL (parents/admin only) -->
+  <div id="admin-panel" class="admin-panel">
+    <div class="admin-header">
+      <h2>User Management</h2>
+      <button id="admin-close" class="btn-icon" title="Close">&#x2715;</button>
+    </div>
+    <div class="admin-body">
+      <div class="admin-user-selector">
+        <label for="admin-user-select">User</label>
+        <select id="admin-user-select">
+          <option value="">Select a user...</option>
+        </select>
+      </div>
+      <div id="admin-user-details" class="admin-user-details" style="display:none;">
+        <!-- PIN section -->
+        <div class="admin-section">
+          <label>PIN</label>
+          <div class="admin-row">
+            <input type="text" id="admin-pin" class="admin-input" maxlength="4" pattern="\d{4}" placeholder="4 digits" />
+            <button id="admin-save-pin" class="btn-admin-save">Save</button>
+          </div>
+        </div>
+        <!-- Passphrase section (parent/admin only) -->
+        <div id="admin-passphrase-section" class="admin-section" style="display:none;">
+          <label>Passphrase</label>
+          <div class="admin-row">
+            <input type="password" id="admin-passphrase" class="admin-input" placeholder="Set passphrase" />
+            <button id="admin-save-passphrase" class="btn-admin-save">Save</button>
+            <button id="admin-clear-passphrase" class="btn-admin-clear">Clear</button>
+          </div>
+          <div id="admin-passphrase-status" class="admin-field-status"></div>
+        </div>
+        <!-- MAC Required toggle -->
+        <div class="admin-section">
+          <label class="admin-checkbox-label">
+            <input type="checkbox" id="admin-mac-required" />
+            <span>Require MAC address for login</span>
+          </label>
+          <button id="admin-save-mac-required" class="btn-admin-save">Save</button>
+        </div>
+        <!-- Registered devices -->
+        <div class="admin-section">
+          <label>Registered Devices</label>
+          <div id="admin-devices-list" class="admin-devices-list"></div>
+          <div class="admin-row" style="margin-top:0.5rem;">
+            <button id="admin-add-this-device" class="btn-admin-action">Add This Device</button>
+            <button id="admin-browse-lan" class="btn-admin-action">Browse LAN</button>
+          </div>
+        </div>
+      </div>
+      <!-- Add new user -->
+      <div class="admin-section admin-add-user-section">
+        <label>Add New User</label>
+        <div class="admin-row"><input type="text" id="admin-new-id" class="admin-input" placeholder="Peer ID (e.g. facility:alex)" /></div>
+        <div class="admin-row"><input type="text" id="admin-new-name" class="admin-input" placeholder="Display name" /></div>
+        <div class="admin-row"><input type="text" id="admin-new-pin" class="admin-input" maxlength="4" placeholder="4-digit PIN" /></div>
+        <div class="admin-row"><input type="text" id="admin-new-agent" class="admin-input" placeholder="Agent ID" /></div>
+        <div class="admin-row">
+          <select id="admin-new-role" class="admin-input">
+            <option value="child">child</option>
+            <option value="parent">parent</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <div class="admin-row" style="margin-top:0.5rem;">
+          <button id="admin-create-user" class="btn-admin-save" style="flex:1;">Create User</button>
+        </div>
+      </div>
+      <!-- Remove selected user -->
+      <div id="admin-remove-section" class="admin-section" style="display:none;">
+        <button id="admin-remove-user" class="btn-admin-remove-user">Remove This User</button>
+      </div>
+      <div id="admin-status" class="admin-status"></div>
+    </div>
+  </div>
+
+  <!-- LAN DEVICE PICKER MODAL -->
+  <div id="lan-modal" class="lan-modal" style="display:none;">
+    <div class="lan-modal-content">
+      <div class="lan-modal-header">
+        <h3>LAN Devices</h3>
+        <button id="lan-modal-close" class="btn-icon" title="Close">&#x2715;</button>
+      </div>
+      <div id="lan-modal-current" class="lan-modal-current"></div>
+      <div id="lan-device-list" class="lan-device-list"></div>
+    </div>
+  </div>
+
+  <script src="chat.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "id": "facility-web",
+  "name": "Facility Web Chat",
+  "description": "MAC/PIN authenticated web chat with per-user agent routing",
+  "channels": ["facility-web"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "usersFile": {
+        "type": "string",
+        "description": "Path to users.yaml file"
+      },
+      "wsPort": {
+        "type": "number",
+        "description": "WebSocket server port (default: 18790)"
+      }
+    }
+  },
+  "uiHints": {
+    "usersFile": {
+      "label": "Users Config File",
+      "placeholder": "~/.openclaw/facility-users.yaml"
+    }
+  },
+  "version": "0.1.0"
+}
