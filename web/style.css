@@ -207,6 +207,65 @@ html, body {
   margin-top: 0.25rem; font-style: italic;
 }
 
+/* ===== CODE BLOCKS ===== */
+.code-block {
+  margin: 0.5rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0.75rem;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+}
+.code-block-lang {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+.code-block-copy {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.code-block-copy:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.code-block-content {
+  margin: 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre;
+  tab-size: 2;
+}
+.code-block-content code {
+  font-family: inherit;
+  font-size: inherit;
+}
+.code-block-content::-webkit-scrollbar { height: 4px; }
+.code-block-content::-webkit-scrollbar-track { background: transparent; }
+.code-block-content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
 /* ===== INPUT AREA ===== */
 .chat-input-container {
   display: flex; align-items: flex-end; gap: 0.5rem;

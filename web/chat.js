@@ -354,70 +354,136 @@
   var currentAgentBubble = null;
 
   var IMG_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  var CODE_RE = /\[CODE:(\w+)\]([\s\S]*?)\[\/CODE\]/g;
 
-  function hasImages(text) {
+  function hasRichContent(text) {
     IMG_RE.lastIndex = 0;
-    return IMG_RE.test(text);
+    CODE_RE.lastIndex = 0;
+    return IMG_RE.test(text) || CODE_RE.test(text);
   }
 
+  /** Build a single image element (or fallback span) */
+  function buildImageNode(alt, src) {
+    if (src.startsWith("/facility-chat/media/") || src.startsWith("https://") || src.startsWith("http://")) {
+      var wrapper = document.createElement("div");
+      wrapper.className = "message-image-wrapper";
+      var img = document.createElement("img");
+      img.className = "message-image";
+      img.alt = alt || "Image";
+      img.src = src;
+      img.loading = "lazy";
+      img.addEventListener("click", function () {
+        window.open(this.src, "_blank");
+      });
+      img.addEventListener("error", function () {
+        this.style.display = "none";
+        var errSpan = document.createElement("span");
+        errSpan.className = "message-text";
+        errSpan.textContent = "[Image failed to load: " + (alt || src) + "]";
+        this.parentNode.appendChild(errSpan);
+      });
+      wrapper.appendChild(img);
+      if (alt) {
+        var caption = document.createElement("div");
+        caption.className = "message-image-caption";
+        caption.textContent = alt;
+        wrapper.appendChild(caption);
+      }
+      return wrapper;
+    }
+    var fallback = document.createElement("span");
+    fallback.className = "message-text";
+    fallback.textContent = "![" + alt + "](" + src + ")";
+    return fallback;
+  }
+
+  /** Build a styled code block element */
+  function buildCodeBlock(lang, code) {
+    var wrapper = document.createElement("div");
+    wrapper.className = "code-block";
+
+    var header = document.createElement("div");
+    header.className = "code-block-header";
+
+    var langLabel = document.createElement("span");
+    langLabel.className = "code-block-lang";
+    langLabel.textContent = lang;
+
+    var copyBtn = document.createElement("button");
+    copyBtn.className = "code-block-copy";
+    copyBtn.textContent = "Copy";
+    copyBtn.addEventListener("click", function () {
+      navigator.clipboard.writeText(code.trim()).then(function () {
+        copyBtn.textContent = "Copied!";
+        setTimeout(function () { copyBtn.textContent = "Copy"; }, 1500);
+      });
+    });
+
+    header.appendChild(langLabel);
+    header.appendChild(copyBtn);
+
+    var pre = document.createElement("pre");
+    pre.className = "code-block-content";
+    var codeEl = document.createElement("code");
+    codeEl.className = "code-lang-" + lang;
+    codeEl.textContent = code.trim();
+    pre.appendChild(codeEl);
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(pre);
+    return wrapper;
+  }
+
+  /**
+   * Parse agent text for rich content (images + code blocks).
+   * Merges both patterns into a single ordered pass so they
+   * render in the correct document order.
+   */
   function renderRichContent(text) {
     var frag = document.createDocumentFragment();
+
+    // Collect all matches with their positions
+    var tokens = [];
+    var m;
+
     IMG_RE.lastIndex = 0;
-    var lastIndex = 0;
-    var match;
-
-    while ((match = IMG_RE.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        var pre = document.createElement("span");
-        pre.className = "message-text";
-        pre.textContent = text.slice(lastIndex, match.index);
-        frag.appendChild(pre);
-      }
-
-      var alt = match[1];
-      var src = match[2];
-
-      if (src.startsWith("/facility-chat/media/") || src.startsWith("https://") || src.startsWith("http://")) {
-        var wrapper = document.createElement("div");
-        wrapper.className = "message-image-wrapper";
-        var img = document.createElement("img");
-        img.className = "message-image";
-        img.alt = alt || "Image";
-        img.src = src;
-        img.loading = "lazy";
-        img.addEventListener("click", function () {
-          window.open(this.src, "_blank");
-        });
-        img.addEventListener("error", function () {
-          this.style.display = "none";
-          var errSpan = document.createElement("span");
-          errSpan.className = "message-text";
-          errSpan.textContent = "[Image failed to load: " + (alt || src) + "]";
-          this.parentNode.appendChild(errSpan);
-        });
-        wrapper.appendChild(img);
-        if (alt) {
-          var caption = document.createElement("div");
-          caption.className = "message-image-caption";
-          caption.textContent = alt;
-          wrapper.appendChild(caption);
-        }
-        frag.appendChild(wrapper);
-      } else {
-        var fallback = document.createElement("span");
-        fallback.className = "message-text";
-        fallback.textContent = match[0];
-        frag.appendChild(fallback);
-      }
-
-      lastIndex = IMG_RE.lastIndex;
+    while ((m = IMG_RE.exec(text)) !== null) {
+      tokens.push({ idx: m.index, end: m.index + m[0].length, type: "img", alt: m[1], src: m[2] });
     }
 
-    if (lastIndex < text.length) {
-      var post = document.createElement("span");
-      post.className = "message-text";
-      post.textContent = text.slice(lastIndex);
-      frag.appendChild(post);
+    CODE_RE.lastIndex = 0;
+    while ((m = CODE_RE.exec(text)) !== null) {
+      tokens.push({ idx: m.index, end: m.index + m[0].length, type: "code", lang: m[1], code: m[2] });
+    }
+
+    // Sort by position in the string
+    tokens.sort(function (a, b) { return a.idx - b.idx; });
+
+    var cursor = 0;
+    tokens.forEach(function (tok) {
+      // Plain text before this token
+      if (tok.idx > cursor) {
+        var span = document.createElement("span");
+        span.className = "message-text";
+        span.textContent = text.slice(cursor, tok.idx);
+        frag.appendChild(span);
+      }
+
+      if (tok.type === "img") {
+        frag.appendChild(buildImageNode(tok.alt, tok.src));
+      } else if (tok.type === "code") {
+        frag.appendChild(buildCodeBlock(tok.lang, tok.code));
+      }
+
+      cursor = tok.end;
+    });
+
+    // Trailing text
+    if (cursor < text.length) {
+      var tail = document.createElement("span");
+      tail.className = "message-text";
+      tail.textContent = text.slice(cursor);
+      frag.appendChild(tail);
     }
 
     return frag;
@@ -427,7 +493,7 @@
     var div = document.createElement("div");
     div.className = "message message-" + type;
 
-    if (type === "agent" && hasImages(text)) {
+    if (type === "agent" && hasRichContent(text)) {
       div.appendChild(renderRichContent(text));
     } else {
       var textSpan = document.createElement("span");
@@ -468,7 +534,7 @@
     if (finalText) {
       if (!currentAgentBubble) {
         addMessage(finalText, "agent");
-      } else if (hasImages(finalText)) {
+      } else if (hasRichContent(finalText)) {
         currentAgentBubble.innerHTML = "";
         currentAgentBubble.appendChild(renderRichContent(finalText));
       } else {
