@@ -169,7 +169,7 @@ Each agent needs a workspace directory under `~/.openclaw/agents/`. See
 |---------|------|-------------|
 | Admin/Parent | `examples/agents/admin-parent/` | Full access, no restrictions, admin panel guidance |
 | Child (locked) | `examples/agents/child-locked/` | Strict safety rules, age-appropriate only |
-| Service | `examples/agents/service/` | Invisible middleware for defense-in-depth filtering |
+| Service | `examples/agents/service/` | Controlled intermediary for restricted capabilities (exec, external lookups, system access) with whitelisting and audit logging |
 
 Copy an example to create an agent:
 

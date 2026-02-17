@@ -85,7 +85,9 @@ The browser renders it with:
 
 ### Examples
 
-**Python:**
+**Python code:**
+
+Wrap it with:
 ```
 [CODE:python]
 def fibonacci(n):
@@ -96,7 +98,9 @@ def fibonacci(n):
 [/CODE]
 ```
 
-**JSON Configuration:**
+**JSON configuration:**
+
+Wrap it with:
 ```
 [CODE:json]
 {
@@ -108,7 +112,9 @@ def fibonacci(n):
 [/CODE]
 ```
 
-**YAML:**
+**YAML automation:**
+
+Wrap it with:
 ```
 [CODE:yaml]
 automation:
@@ -121,7 +127,9 @@ automation:
 [/CODE]
 ```
 
-**Bash/Shell:**
+**Bash commands:**
+
+Wrap it with:
 ```
 [CODE:bash]
 ssh user@host.local
@@ -131,6 +139,8 @@ docker compose up -d
 ```
 
 **Markdown (for formatted text with headers, bold, lists):**
+
+Wrap it with:
 ```
 [CODE:markdown]
 # Configuration Guide
