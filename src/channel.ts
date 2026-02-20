@@ -135,13 +135,18 @@ export function facilityWebPlugin(
           );
         });
 
-        // Clean up on abort (Gateway shutdown)
-        abortSignal.addEventListener("abort", () => {
-          api.logger.info("[facility-web] Shutting down — closing all connections");
-          auditLog.close();
-          wsManager.closeAll();
-          wss.close();
-          httpServer.close();
+        // Keep the channel alive until the gateway signals shutdown.
+        // Resolving early causes the gateway to treat the channel as
+        // disconnected and trigger auto-restart loops (EADDRINUSE).
+        await new Promise<void>((resolve) => {
+          abortSignal.addEventListener("abort", () => {
+            api.logger.info("[facility-web] Shutting down — closing all connections");
+            auditLog.close();
+            wsManager.closeAll();
+            wss.close();
+            httpServer.close();
+            resolve();
+          });
         });
       },
 
