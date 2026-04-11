@@ -23,8 +23,6 @@ const plugin = {
     setUsersFilePath(usersFile);
 
     // Derive the .openclaw base directory from the usersFile config path.
-    // This avoids relying on homedir() which breaks when the gateway
-    // runs as a different user (e.g., root via sudo).
     const openclawHome = usersFile.startsWith("~")
       ? resolve(homedir(), usersFile.slice(2), "..")
       : resolve(dirname(usersFile));
@@ -33,7 +31,7 @@ const plugin = {
     const mediaDir = resolve(openclawHome, "media");
     const auditLog = new AuditLog(auditDir);
 
-    // Register HTTP routes for serving the web UI
+    // Register HTTP routes for serving the web UI (replaceExisting handles re-registration)
     registerHttpRoutes(api, users, auditLog, mediaDir);
 
     // Register as a messaging channel

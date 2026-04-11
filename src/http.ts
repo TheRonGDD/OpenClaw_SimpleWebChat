@@ -1,9 +1,9 @@
 /**
  * HTTP handler — serves the web UI from the Gateway's HTTP server.
  *
- * Uses registerHttpHandler (catch-all) instead of registerHttpRoute
- * because the Gateway's route matching is exact-pathname only.
- * Our handler claims any request starting with /facility-chat/.
+ * Uses registerHttpRoute with prefix matching for all /facility-chat/ routes.
+ * More specific routes (audit, imagegen, media) are registered first;
+ * the static file handler is a prefix catch-all registered last.
  *
  * Routes:
  *   GET  /facility-chat/              → index.html (login + chat SPA)
@@ -41,23 +41,23 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 export function registerHttpRoutes(api: OpenClawPluginApi, users: FacilityUser[], auditLog: AuditLog, mediaDir: string) {
-  api.registerHttpHandler(async (req, res) => {
-    const url = req.url || "/";
 
-    // Only handle requests to /facility-chat
-    if (!url.startsWith("/facility-chat")) return false;
-
-    // --- Audit API endpoint ---
-    if (url.startsWith("/facility-chat/audit")) {
+  // --- Audit API endpoint ---
+  api.registerHttpRoute({
+    path: "/facility-chat/audit",
+    auth: "plugin",
+    match: "prefix",
+    replaceExisting: true,
+    handler: async (req, res) => {
+      const url = req.url || "/";
       const params = new URL(url, "http://localhost").searchParams;
       const pin = params.get("pin");
       if (!pin) {
         res.writeHead(401, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Missing pin parameter" }));
-        return true;
+        return;
       }
 
-      // Authenticate via PIN + MAC (same logic as WebSocket auth)
       const clientIp = extractHttpClientIp(req);
       const mac = resolveMAC(clientIp);
       const authResult = authenticate(users, pin, mac);
@@ -65,13 +65,13 @@ export function registerHttpRoutes(api: OpenClawPluginApi, users: FacilityUser[]
       if (!authResult.user) {
         res.writeHead(403, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Authentication failed" }));
-        return true;
+        return;
       }
 
       if (authResult.user.role !== "parent" && authResult.user.role !== "admin") {
         res.writeHead(403, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Audit access denied" }));
-        return true;
+        return;
       }
 
       const childId = params.get("child") || undefined;
@@ -86,16 +86,25 @@ export function registerHttpRoutes(api: OpenClawPluginApi, users: FacilityUser[]
 
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(entries));
-      return true;
-    }
+    },
+  });
 
-    // --- Image generation proxy endpoint ---
-    if (url.startsWith("/facility-chat/imagegen") && req.method === "POST") {
-      // Authenticate via PIN in request body
+  // --- Image generation proxy endpoint ---
+  api.registerHttpRoute({
+    path: "/facility-chat/imagegen",
+    auth: "plugin",
+    match: "exact",
+    replaceExisting: true,
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "Content-Type": "text/plain" });
+        res.end("Method Not Allowed");
+        return;
+      }
+
       const clientIp = extractHttpClientIp(req);
       const mac = resolveMAC(clientIp);
 
-      // Read request body
       const body = await new Promise<string>((resolve) => {
         let data = "";
         req.on("data", (chunk: Buffer) => { data += chunk.toString(); });
@@ -108,27 +117,27 @@ export function registerHttpRoutes(api: OpenClawPluginApi, users: FacilityUser[]
       } catch {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Invalid JSON" }));
-        return true;
+        return;
       }
 
       const pin = parsed.pin;
       if (!pin) {
         res.writeHead(401, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Missing pin" }));
-        return true;
+        return;
       }
 
       const authResult = authenticate(users, pin, mac);
       if (!authResult.user) {
         res.writeHead(403, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Authentication failed" }));
-        return true;
+        return;
       }
 
       if (!parsed.prompt || typeof parsed.prompt !== "string") {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Missing prompt" }));
-        return true;
+        return;
       }
 
       const result = await generateImage({
@@ -142,23 +151,29 @@ export function registerHttpRoutes(api: OpenClawPluginApi, users: FacilityUser[]
       if ("error" in result) {
         res.writeHead(502, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: result.error }));
-        return true;
+        return;
       }
 
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ url: result.url, prompt: result.prompt, seed: result.seed }));
-      return true;
-    }
+    },
+  });
 
-    // --- Media file serving (agent-generated images) ---
-    if (url.startsWith("/facility-chat/media/")) {
+  // --- Media file serving (agent-generated images) ---
+  api.registerHttpRoute({
+    path: "/facility-chat/media",
+    auth: "plugin",
+    match: "prefix",
+    replaceExisting: true,
+    handler: async (req, res) => {
+      const url = req.url || "/";
       const mediaPath = url.replace(/^\/facility-chat\/media\//, "").split("?")[0];
 
       // Security: reject path traversal and empty paths
       if (!mediaPath || mediaPath.includes("..") || mediaPath.includes("\\")) {
         res.writeHead(403);
         res.end("Forbidden");
-        return true;
+        return;
       }
 
       const ext = mediaPath.substring(mediaPath.lastIndexOf("."));
@@ -168,7 +183,7 @@ export function registerHttpRoutes(api: OpenClawPluginApi, users: FacilityUser[]
       if (!mimeType || !mimeType.startsWith("image/")) {
         res.writeHead(403, { "Content-Type": "text/plain" });
         res.end("Only image files are served from /media/");
-        return true;
+        return;
       }
 
       try {
@@ -179,52 +194,59 @@ export function registerHttpRoutes(api: OpenClawPluginApi, users: FacilityUser[]
           "Cache-Control": "public, max-age=86400",
         });
         res.end(content);
-        return true;
       } catch {
         res.writeHead(404, { "Content-Type": "text/plain" });
         res.end("Not found");
-        return true;
       }
-    }
+    },
+  });
 
-    // Skip WebSocket upgrade requests — handled separately
-    if (String(req.headers["upgrade"] ?? "").toLowerCase() === "websocket") {
-      return false;
-    }
+  // --- Static web UI files (catch-all for /facility-chat/) ---
+  api.registerHttpRoute({
+    path: "/facility-chat",
+    auth: "plugin",
+    match: "prefix",
+    replaceExisting: true,
+    handler: async (req, res) => {
+      const url = req.url || "/";
 
-    // Redirect /facility-chat to /facility-chat/
-    if (url === "/facility-chat") {
-      res.writeHead(302, { Location: "/facility-chat/" });
-      res.end();
-      return true;
-    }
+      // Skip WebSocket upgrade requests — handled separately
+      if (String(req.headers["upgrade"] ?? "").toLowerCase() === "websocket") {
+        return;
+      }
 
-    // Normalize URL path — strip prefix, default to index.html
-    let urlPath = url.replace(/^\/facility-chat\/?/, "/").split("?")[0];
-    if (urlPath === "/" || urlPath === "") urlPath = "/index.html";
+      // Redirect /facility-chat to /facility-chat/
+      if (url === "/facility-chat") {
+        res.writeHead(302, { Location: "/facility-chat/" });
+        res.end();
+        return;
+      }
 
-    // Security: prevent path traversal
-    if (urlPath.includes("..")) {
-      res.writeHead(403);
-      res.end("Forbidden");
-      return true;
-    }
+      // Normalize URL path — strip prefix, default to index.html
+      let urlPath = url.replace(/^\/facility-chat\/?/, "/").split("?")[0];
+      if (urlPath === "/" || urlPath === "") urlPath = "/index.html";
 
-    // Determine file extension and MIME type
-    const ext = urlPath.substring(urlPath.lastIndexOf("."));
-    const mimeType = MIME_TYPES[ext] || "application/octet-stream";
+      // Security: prevent path traversal
+      if (urlPath.includes("..")) {
+        res.writeHead(403);
+        res.end("Forbidden");
+        return;
+      }
 
-    try {
-      const filePath = resolve(WEB_DIR, urlPath.slice(1));
-      const content = readFileSync(filePath);
-      res.writeHead(200, { "Content-Type": mimeType });
-      res.end(content);
-      return true;
-    } catch {
-      res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("Not found");
-      return true;
-    }
+      // Determine file extension and MIME type
+      const ext = urlPath.substring(urlPath.lastIndexOf("."));
+      const mimeType = MIME_TYPES[ext] || "application/octet-stream";
+
+      try {
+        const filePath = resolve(WEB_DIR, urlPath.slice(1));
+        const content = readFileSync(filePath);
+        res.writeHead(200, { "Content-Type": mimeType });
+        res.end(content);
+      } catch {
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.end("Not found");
+      }
+    },
   });
 
   api.logger.info(`[facility-web] HTTP routes registered at /facility-chat/`);
